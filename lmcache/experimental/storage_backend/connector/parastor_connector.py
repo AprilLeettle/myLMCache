@@ -29,7 +29,7 @@ from lmcache.experimental.storage_backend.local_cpu_backend import \
     LocalCPUBackend
 from lmcache.logging import init_logger
 from lmcache.utils import (CacheEngineKey, DiskCacheMetadata,
-                           _lmcache_nvtx_annotate)
+                           _lmcache_nvtx_annotate, RoundRobinEventLoopPool)
 
 from lmcache.experimental.protocol import RemoteMetadata
 from lmcache.experimental.storage_backend.connector.base_connector import \
@@ -75,6 +75,7 @@ class ParastorConnector(RemoteConnector):
     def __init__(
         self,
         loop: asyncio.AbstractEventLoop,
+        aiopool: RoundRobinEventLoopPool,
         local_cpu_backend: LocalCPUBackend,
     ):
         try:
@@ -103,6 +104,7 @@ class ParastorConnector(RemoteConnector):
 
         self.local_cpu_backend = local_cpu_backend
         self.loop = loop
+        self.aiopool = aiopool
         self.usage = 0
 
     def _key_to_path(

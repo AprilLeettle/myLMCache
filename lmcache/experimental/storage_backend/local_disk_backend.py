@@ -35,7 +35,7 @@ from lmcache.experimental.storage_backend.local_cpu_backend import \
 from lmcache.logging import init_logger
 from lmcache.observability import LMCStatsMonitor
 from lmcache.utils import (CacheEngineKey, DiskCacheMetadata,
-                           _lmcache_nvtx_annotate)
+                           _lmcache_nvtx_annotate, RoundRobinEventLoopPool)
 
 if TYPE_CHECKING:
     from lmcache.experimental.cache_controller.worker import LMCacheWorker
@@ -49,6 +49,7 @@ class LocalDiskBackend(StorageBackendInterface):
         self,
         config: LMCacheEngineConfig,
         loop: asyncio.AbstractEventLoop,
+        aiopoool: RoundRobinEventLoopPool,
         local_cpu_backend: LocalCPUBackend,
         dst_device: str = "cuda",
         lmcache_worker: Optional["LMCacheWorker"] = None,

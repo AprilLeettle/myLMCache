@@ -27,6 +27,7 @@ from lmcache.experimental.storage_backend.connector.redis_connector import (
 from lmcache.experimental.storage_backend.local_cpu_backend import \
     LocalCPUBackend
 from lmcache.logging import init_logger
+from lmcache.utils import RoundRobinEventLoopPool
 
 from .audit_connector import AuditConnector
 from .blackhole_connector import BlackholeConnector
@@ -120,6 +121,7 @@ def parse_remote_url(url: str) -> ParsedRemoteURL:
 def CreateConnector(
     url: str,
     loop: asyncio.AbstractEventLoop,
+    aiopool: RoundRobinEventLoopPool,
     local_cpu_backend: LocalCPUBackend,
     config: Optional[LMCacheEngineConfig] = None,
 ) -> Optional[RemoteConnector]:
@@ -193,7 +195,7 @@ def CreateConnector(
             return AuditConnector(real_connector=real_connector,
                                   verify_checksum=verify_checksum)
         case "parastor":
-            connector = ParastorConnector(loop, local_cpu_backend)
+            connector = ParastorConnector(loop, aiopool, local_cpu_backend)
         case _:
             raise ValueError(f"Unknown connector type {connector_type} "
                              f"(url is: {url})")

@@ -30,6 +30,7 @@ from lmcache.experimental.storage_backend.local_disk_backend import \
     LocalDiskBackend
 from lmcache.experimental.storage_backend.remote_backend import RemoteBackend
 from lmcache.logging import init_logger
+from lmcache.utils import RoundRobinEventLoopPool
 
 if TYPE_CHECKING:
     from lmcache.experimental.cache_controller.worker import LMCacheWorker
@@ -41,6 +42,7 @@ def CreateStorageBackends(
     config: LMCacheEngineConfig,
     metadata: LMCacheEngineMetadata,
     loop: asyncio.AbstractEventLoop,
+    aiopool: RoundRobinEventLoopPool,
     memory_allocator: MemoryAllocatorInterface,
     dst_device: str = "cuda",
     lmcache_worker: Optional["LMCacheWorker"] = None,
@@ -63,14 +65,14 @@ def CreateStorageBackends(
     storage_backends[backend_name] = local_cpu_backend
 
     if config.local_disk and config.max_local_disk_size > 0:
-        local_disk_backend = LocalDiskBackend(config, loop, local_cpu_backend,
+        local_disk_backend = LocalDiskBackend(config, loop, aiopool, local_cpu_backend,
                                               dst_device, lmcache_worker,
                                               lookup_server)
         backend_name = str(local_disk_backend)
         storage_backends[backend_name] = local_disk_backend
 
     if config.remote_url is not None:
-        remote_backend = RemoteBackend(config, metadata, loop,
+        remote_backend = RemoteBackend(config, metadata, loop, aiopool,
                                        local_cpu_backend, dst_device,
                                        lookup_server)
         backend_name = str(remote_backend)

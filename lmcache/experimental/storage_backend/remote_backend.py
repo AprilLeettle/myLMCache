@@ -33,7 +33,7 @@ from lmcache.experimental.storage_backend.local_cpu_backend import \
 from lmcache.experimental.storage_backend.naive_serde import CreateSerde
 from lmcache.logging import init_logger
 from lmcache.observability import LMCStatsMonitor
-from lmcache.utils import CacheEngineKey, _lmcache_nvtx_annotate
+from lmcache.utils import CacheEngineKey, _lmcache_nvtx_annotate, RoundRobinEventLoopPool
 
 logger = init_logger(__name__)
 
@@ -45,6 +45,7 @@ class RemoteBackend(StorageBackendInterface):
         config: LMCacheEngineConfig,
         metadata: LMCacheEngineMetadata,
         loop: asyncio.AbstractEventLoop,
+        aiopool: RoundRobinEventLoopPool,
         local_cpu_backend: LocalCPUBackend,
         dst_device: str = "cuda",
         lookup_server: Optional[LookupServerInterface] = None,
@@ -60,6 +61,7 @@ class RemoteBackend(StorageBackendInterface):
         self.local_cpu_backend = local_cpu_backend
 
         self.loop = loop
+        self.aiopool = aiopool
         self.config = config
 
         # Re-establish connection only when the connection
@@ -96,6 +98,7 @@ class RemoteBackend(StorageBackendInterface):
             assert self.config.remote_url is not None
             self.connection = CreateConnector(self.config.remote_url,
                                               self.loop,
+                                              self.aiopool,
                                               self.local_cpu_backend,
                                               self.config)
             logger.info("Connection initialized/re-established "
@@ -125,8 +128,12 @@ class RemoteBackend(StorageBackendInterface):
             logger.warning("Connection is None in contains, returning False")
             return False
 
-        future = asyncio.run_coroutine_threadsafe(self.connection.exists(key),
-                                                  self.loop)
+        if False:
+            future = asyncio.run_coroutine_threadsafe(self.connection.exists(key),
+                                                    self.loop)
+        else:
+            future = self.aiopool.submit_coroutine(self.connnection.exists(key))
+
         try:
             res = future.result()
             return res
@@ -172,8 +179,13 @@ class RemoteBackend(StorageBackendInterface):
 
         # NOTE: No need to do error handling here
         # since the `future` is never waited
-        future = asyncio.run_coroutine_threadsafe(
-            self.connection_put_wrapper(key, compressed_memory_obj), self.loop)
+        if False:
+            future = asyncio.run_coroutine_threadsafe(
+                self.connection_put_wrapper(key, compressed_memory_obj), self.loop)
+        else:
+            future = self.aiopool.submit_coroutine(
+                self.connection_put_wrapper(key, compressed_memory_obj))
+
         lambda_callback = lambda f: \
                 self.put_callback(f, key)
         future.add_done_callback(lambda_callback)
@@ -199,9 +211,13 @@ class RemoteBackend(StorageBackendInterface):
                 "Connection is None in get_blocking, returning None")
             return None
         t1 = time.perf_counter()
-        future = asyncio.run_coroutine_threadsafe(
-            self.connection_get_wrapper(key), self.loop)
-
+        if False:
+            future = asyncio.run_coroutine_threadsafe(
+                self.connection_get_wrapper(key), self.loop)
+        else:
+            future = self.aiopool.submit_coroutine(
+                self.connection_get_wrapper(key))
+            
         try:
             memory_obj = future.result()
         except Exception as e:
@@ -263,8 +279,11 @@ class RemoteBackend(StorageBackendInterface):
     def close(self):
         try:
             assert self.connection is not None
-            future = asyncio.run_coroutine_threadsafe(self.connection.close(),
-                                                      self.loop)
+            if False:
+                future = asyncio.run_coroutine_threadsafe(self.connection.close(),
+                                                        self.loop)
+            else:
+                future = self.aiopool.submit_coroutine(self.connection.close())
             future.result()
             logger.info("Remote backend closed.")
         except Exception as e:

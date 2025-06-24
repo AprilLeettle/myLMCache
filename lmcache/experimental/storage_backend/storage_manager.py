@@ -33,13 +33,12 @@ from lmcache.experimental.storage_backend.abstract_backend import \
 from lmcache.experimental.storage_backend.local_cpu_backend import \
     LocalCPUBackend
 from lmcache.logging import init_logger
-from lmcache.utils import CacheEngineKey, _lmcache_nvtx_annotate
+from lmcache.utils import CacheEngineKey, _lmcache_nvtx_annotate, RoundRobinEventLoopPool
 
 if TYPE_CHECKING:
     from lmcache.experimental.cache_controller.worker import LMCacheWorker
 
 logger = init_logger(__name__)
-
 
 # TODO: extend this class to implement caching policies and eviction policies
 class StorageManager:
@@ -55,16 +54,19 @@ class StorageManager:
                  lookup_server: Optional[LookupServerInterface] = None):
         self.memory_allocator = allocator
 
-        self.loop = asyncio.new_event_loop()
-        self.thread = threading.Thread(target=self.loop.run_forever)
-        self.thread.start()
-
+        if False:
+            self.loop = asyncio.new_event_loop()
+            self.thread = threading.Thread(target=self.loop.run_forever)
+            self.thread.start()
+        else:
+            self.aiopool = RoundRobinEventLoopPool(num_loops=8)
+ 
         #TODO: remove hardcode
         dst_device = "cuda"
         self.storage_backends: OrderedDict[str, StorageBackendInterface] =\
             CreateStorageBackends(
                 config, metadata,
-                self.loop, allocator, dst_device,
+                self.loop, self.aiopool, allocator, dst_device,
                 lmcache_worker, lookup_server)
         self.local_cpu_backend = self.storage_backends["LocalCPUBackend"]
         self.prefetch_tasks: Dict[CacheEngineKey, Future] = {}
@@ -418,6 +420,8 @@ class StorageManager:
             self.loop.call_soon_threadsafe(self.loop.stop)
         if self.thread.is_alive():
             self.thread.join()
+            
+        self.aiopool.stop()
 
         logger.info("Storage manager closed.")
 

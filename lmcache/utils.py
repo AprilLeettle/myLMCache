@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import hashlib
 import threading
+from concurrent.futures import Future
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
+from itertools import cycle
 
 import torch
 from nvtx import annotate  # type: ignore
@@ -181,3 +184,58 @@ def thread_safe(func):
             return func(*args, **kwargs)
 
     return wrapper
+
+class RoundRobinEventLoopPool:
+    def __init__(self, num_loops: int):
+        self.loops: Dict[int, asyncio.AbstractEventLoop] = {}
+        self.threads: Dict[int, threading.Thread] = {}
+        self._loop_ids = list(range(num_loops))
+        self._rr_cycle = cycle(self._loop_ids)  # 轮询迭代器
+        self._lock = threading.Lock()  # 保证轮询迭代器线程安全
+
+        # 初始化事件循环线程
+        for i in self._loop_ids:
+            self._start_loop_thread(thread_id=i)
+
+    def _start_loop_thread(self, thread_id: int):
+        """启动单个事件循环线程"""
+        loop = asyncio.new_event_loop()
+        
+        def run_loop():
+            asyncio.set_event_loop(loop)
+            loop.run_forever()
+
+        thread = threading.Thread(
+            target=run_loop,
+            name=f"AioThread-{thread_id}",
+            daemon=True
+        )
+        thread.start()
+        
+        self.loops[thread_id] = loop
+        self.threads[thread_id] = thread
+
+    def _get_next_loop_id(self) -> int:
+        """线程安全地获取下一个轮询目标ID"""
+        with self._lock:
+            return next(self._rr_cycle)
+
+    def submit_coroutine(
+        self, 
+        coro, 
+        thread_id: Optional[int] = None
+    ) -> Future:
+        """
+        提交协程到事件循环线程
+        :param thread_id: 如果为None则自动轮询选择
+        """
+        target_id = thread_id if thread_id is not None else self._get_next_loop_id()
+        loop = self.loops[target_id]
+        return asyncio.run_coroutine_threadsafe(coro, loop)
+
+    def stop(self):
+        """安全关闭所有事件循环"""
+        for loop in self.loops.values():
+            loop.call_soon_threadsafe(loop.stop)
+        for thread in self.threads.values():
+            thread.join(timeout=1)
