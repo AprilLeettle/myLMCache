@@ -32,6 +32,7 @@ from .audit_connector import AuditConnector
 from .blackhole_connector import BlackholeConnector
 from .infinistore_connector import InfinistoreConnector
 from .mooncakestore_connector import MooncakestoreConnector
+from .parastor_connector import ParastorConnector
 
 logger = init_logger(__name__)
 
@@ -191,6 +192,8 @@ def CreateConnector(
             assert real_connector is not None
             return AuditConnector(real_connector=real_connector,
                                   verify_checksum=verify_checksum)
+        case "parastor":
+            connector = ParastorConnector(loop, local_cpu_backend)
         case _:
             raise ValueError(f"Unknown connector type {connector_type} "
                              f"(url is: {url})")
