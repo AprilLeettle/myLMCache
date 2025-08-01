@@ -54,12 +54,11 @@ class StorageManager:
                  lookup_server: Optional[LookupServerInterface] = None):
         self.memory_allocator = allocator
 
-        if False:
-            self.loop = asyncio.new_event_loop()
-            self.thread = threading.Thread(target=self.loop.run_forever)
-            self.thread.start()
-        else:
-            self.aiopool = RoundRobinEventLoopPool(num_loops=8)
+        self.loop = asyncio.new_event_loop()
+        self.thread = threading.Thread(target=self.loop.run_forever)
+        self.thread.start()
+            
+        self.aiopool = RoundRobinEventLoopPool(num_loops=8)
  
         #TODO: remove hardcode
         dst_device = "cuda"

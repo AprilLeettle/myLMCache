@@ -132,7 +132,7 @@ class RemoteBackend(StorageBackendInterface):
             future = asyncio.run_coroutine_threadsafe(self.connection.exists(key),
                                                     self.loop)
         else:
-            future = self.aiopool.submit_coroutine(self.connnection.exists(key))
+            future = self.aiopool.submit_coroutine(self.connection.exists(key))
 
         try:
             res = future.result()
