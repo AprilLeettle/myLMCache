@@ -1,26 +1,15 @@
-# Copyright 2024-2025 LMCache Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
+# SPDX-License-Identifier: Apache-2.0
 # This file is copied from the vLLM project (https://github.com/vllm-project/vllm).
 # Original source file: [vllm/vllm/connections.py]
 # License: [Apache License 2.0]
 # Modifications: header name
 
+# Standard
 from pathlib import Path
 from typing import Mapping, MutableMapping, Optional
 from urllib.parse import urlparse
 
+# Third Party
 import aiohttp
 import requests
 
@@ -54,8 +43,9 @@ class HTTPConnection:
         parsed_url = urlparse(url)
 
         if parsed_url.scheme not in ("http", "https"):
-            raise ValueError("Invalid HTTP URL: A valid HTTP URL "
-                             "must have scheme 'http' or 'https'.")
+            raise ValueError(
+                "Invalid HTTP URL: A valid HTTP URL must have scheme 'http' or 'https'."
+            )
 
     def _headers(self, **extras: str) -> MutableMapping[str, str]:
         return {"User-Agent": "LMCache", **extras}
@@ -73,10 +63,12 @@ class HTTPConnection:
         client = self.get_sync_client()
         extra_headers = extra_headers or {}
 
-        return client.get(url,
-                          headers=self._headers(**extra_headers),
-                          stream=stream,
-                          timeout=timeout)
+        return client.get(
+            url,
+            headers=self._headers(**extra_headers),
+            stream=stream,
+            timeout=timeout,
+        )
 
     async def get_async_response(
         self,
@@ -90,9 +82,7 @@ class HTTPConnection:
         client = await self.get_async_client()
         extra_headers = extra_headers or {}
 
-        return client.get(url,
-                          headers=self._headers(**extra_headers),
-                          timeout=timeout)
+        return client.get(url, headers=self._headers(**extra_headers), timeout=timeout)
 
     def get_bytes(self, url: str, *, timeout: Optional[float] = None) -> bytes:
         with self.get_response(url, timeout=timeout) as r:

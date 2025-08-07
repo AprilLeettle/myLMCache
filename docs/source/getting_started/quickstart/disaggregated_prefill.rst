@@ -54,8 +54,8 @@ Configuration
        # NIXL configuration for KV cache transfer
        enable_nixl: True
        nixl_role: "sender"          # Prefiller acts as KV cache sender
-       nixl_peer_host: "localhost"  # Host where decoder is running
-       nixl_peer_port: 55555        # Port where decoder is listening
+       nixl_receiver_host: "localhost"  # Host where decoder is running
+       nixl_receiver_port: 55555        # Port where decoder is listening
        nixl_buffer_size: 1073741824  # 1GB buffer for KV cache transfer
        nixl_buffer_device: "cuda"   # Use GPU memory for buffer
        nixl_enable_gc: True         # Enable garbage collection
@@ -73,8 +73,8 @@ Configuration
        # NIXL configuration for KV cache transfer
        enable_nixl: True
        nixl_role: "receiver"        # Decoder acts as KV cache receiver
-       nixl_peer_host: "localhost"  # Host where decoder is listening
-       nixl_peer_port: 55555        # Port where decoder is listening
+       nixl_receiver_host: "localhost"  # Host where decoder is listening
+       nixl_receiver_port: 55555        # Port where decoder is listening
        nixl_buffer_size: 1073741824  # 1GB buffer for KV cache transfer
        nixl_buffer_device: "cuda"   # Use GPU memory for buffer
        nixl_enable_gc: True         # Enable garbage collection
@@ -100,7 +100,6 @@ Step-by-Step Setup
 
           UCX_TLS=cuda_ipc,cuda_copy,tcp \
               LMCACHE_CONFIG_FILE=lmcache-decoder-config.yaml \
-              LMCACHE_USE_EXPERIMENTAL=True \
               CUDA_VISIBLE_DEVICES=1 \
               vllm serve meta-llama/Llama-3.1-8B-Instruct \
               --port 8200 \
@@ -114,7 +113,6 @@ Step-by-Step Setup
 
           UCX_TLS=cuda_ipc,cuda_copy,tcp \
               LMCACHE_CONFIG_FILE=lmcache-prefiller-config.yaml \
-              LMCACHE_USE_EXPERIMENTAL=True \
               CUDA_VISIBLE_DEVICES=0 \
               vllm serve meta-llama/Llama-3.1-8B-Instruct \
               --port 8100 \
@@ -124,11 +122,11 @@ Step-by-Step Setup
 
    c. Launch a proxy server to coordinate between prefiller and decoder:
 
-      The code for the proxy server is available `in vLLM repo <https://github.com/vllm-project/vllm/blob/main/examples/lmcache/disagg_prefill_lmcache_v1/disagg_proxy_server.py>`_.
+      The code for the proxy server is available `in vLLM repo <https://github.com/vllm-project/vllm/blob/main/examples/others/lmcache/disagg_prefill_lmcache_v1/disagg_proxy_server.py>`_.
 
       .. code-block:: bash
 
-          wget https://raw.githubusercontent.com/vllm-project/vllm/main/examples/lmcache/disagg_prefill_lmcache_v1/disagg_proxy_server.py
+          wget https://raw.githubusercontent.com/vllm-project/vllm/main/examples/others/lmcache/disagg_prefill_lmcache_v1/disagg_proxy_server.py
 
           python3 disagg_proxy_server.py \
               --host localhost \
@@ -142,7 +140,6 @@ Step-by-Step Setup
 
     The ``UCX_TLS`` environment variable is used to specify the transport layer for UCX (the example uses NVLink)
     The ``CUDA_VISIBLE_DEVICES`` environment variable is used to specify the GPUs to use for the servers.
-    The ``LMCACHE_USE_EXPERIMENTAL`` environment variable is used to enable the experimental features of LMCache.
     
 
 3. **Verify Setup**
@@ -184,7 +181,7 @@ Monitoring
 
 The prefiller instance will log the throughput of KV cache transfer:
 
-    LMCache INFO: Store 5271 tokens takes: 6.5000 ms, throughput: 98.9889 GB/s; offload_time: 2.6594 ms, put_time: 3.4539 ms (cache_engine.py:190:lmcache.experimental.cache_engine)
+    LMCache INFO: Store 5271 tokens takes: 6.5000 ms, throughput: 98.9889 GB/s; offload_time: 2.6594 ms, put_time: 3.4539 ms (cache_engine.py:190:lmcache.v1.cache_engine)
 
 The decoder instance will log how many tokens are fetched from the LMCache:
 

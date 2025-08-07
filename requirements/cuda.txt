@@ -1,0 +1,13 @@
+# Common project dependencies
+-r common.txt
+
+# Dependencies for NVIDIA GPUs
+ray >= 2.9
+nvidia-ml-py # for pynvml package
+
+# These dependencies also exist in vLLM (so we don't pin the version, even though this may cause some hard-to-debug issues)
+torch
+# Required for phi3v processor. See https://github.com/pytorch/vision?tab=readme-ov-file#installation for corresponding version
+torchvision
+# platform_system == 'Linux' and platform_machine == 'x86_64' 
+xformers
